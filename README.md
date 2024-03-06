@@ -5,7 +5,6 @@ Collection of scripts for processing re-sequenced UV-mutagenised IPO323 strains
 1. Change the path for the REFERENCE_GENOME variable to fit your reference.
 2. Set the path for where the individual bam files are located under the variable BAM_PATH
 3. Change the list of names for your individual bam files under the BAM_FILES variable
-4. In line 65 there is one hard-coded element that needs to be changed
 5. run coverage_calculator.sh in your terminal
 6. Expected outputs
    -- intervals_5kb.bed that contains the coordinates for each 5kb of your reference
