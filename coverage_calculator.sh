@@ -25,11 +25,11 @@ cat intervals_less_than_5x_*.txt > merged_intervals_less_than_5x.txt
 sort -k1,1 -k2,2n merged_intervals_less_than_5x.txt > sorted_merged_intervals_less_than_5x.txt
 
 # Use awk to generate a unique list of 5kb intervals
-awk '!seen[$1,$2,$3]++' sorted_merged_intervals_less_than_5x.txt > unique_lessthan5kb_intervals.bed
+awk '!seen[$1,$2,$3]++' sorted_merged_intervals_less_than_5x.txt > unique_lessthan5x_intervals.bed
 
 
 # The common unique_bed_file for all isolates
-unique_bed_file="unique_lessthan5kb_intervals.bed"
+unique_bed_file="unique_lessthan5x_intervals.bed"
 
 ###############  PART 3: Look through individual files and indicate if genomic region is present (0) or absent (1) in less_than_5x_isolates.bed ###############################################
 
@@ -41,7 +41,7 @@ for isolate in "${BAM_FILES[@]}"; do
     # Create a temporary file to store the presence information
     tmp_file=$(mktemp)
 
-    # Loop through intervals in unique_lessthan5kb_intervals.bed
+    # Loop through intervals in unique_lessthan5x_intervals.bed
     while read -r chrom start stop _; do
         # Check if the interval exists in intervals_less_than_5x_ISOATE.bed, this is counter intuitive but a 1 means that this genomic region is less than 5x i.e. absent in that isolate
         found=$(awk -v chrom="$chrom" -v start="$start" -v stop="$stop" '$1 == chrom && $2 == start && $3 == stop { found = 1; exit } END { if (found) print 1; else print 0 }' "$isolate_bed_file")
@@ -62,7 +62,7 @@ done
 
 
 # Combine the first three columns from each individual summary file
-awk 'BEGIN {OFS="\t"; print "Chrom\tStart\tStop"} {print $1, $2, $3}' unique_lessthan5kb_intervals.bed > combined_summary.txt
+awk 'BEGIN {OFS="\t"; print "Chrom\tStart\tStop"} {print $1, $2, $3}' unique_lessthan5x_intervals.bed > combined_summary.txt
 
 # Combine the fourth column ("Presence") from each individual summary file
 for isolate in "${BAM_FILES[@]}"; do
