@@ -1,5 +1,5 @@
 # FWD_genetics_screen
-Collection of scripts for processing re-sequenced UV-mutagenised IPO323 strains
+Script that uses bedtools and awk for processing re-sequenced UV-mutagenised IPO323 strains
 
 ## To subdivide the reference genome into intervals and then count intervals where the coverage is less than 5x in individual BAM files
 1. Change the path for the REFERENCE_GENOME variable to fit your reference.
