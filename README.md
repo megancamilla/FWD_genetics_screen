@@ -17,7 +17,7 @@ A set of scripts that uses bedtools and awk for processing re-sequenced UV-mutag
   
 ## Script coverage_calculator_genes.sh
 ### To find individual genes where the coverage is less than 5x in individual BAM files
-1. Change the path for the REFERENCE_GENOME variable to fit your reference. This should be and indexed fasta file, so of the format REFERENCEISOLATE.fasta.fai
+1. Change the path for the REFERENCE_GENOME variable to fit your reference. This should be and indexed fasta file, so of the format REFERENCE.fasta.fai
 2. Change the path for the GFF_FILE which should be the gff3 file showing the location of all genes for your REFERENCE.fasta
 3. Set the path for where the individual bam files are located under the variable BAM_PATH
 4. Change the list of names for your individual bam files under the BAM_FILES variable (bam file name format should be ISOALTE.sorted.bam)
@@ -28,7 +28,13 @@ A set of scripts that uses bedtools and awk for processing re-sequenced UV-mutag
    * merged_INRAEgenes_less_than_5x.txt, sorted_merged_INRAEgenes_less_than_5x.txt and unique_INRAE_genes.bed (intermediate files but can be useful to look at, unique_INRAE_genes.bed is the most important. This file contains a unique non-redundant list of all the intervals (i.e. in any isolate) where the coverage for a gene was less than 5x)
    * isolate_summary.txt, tab-delmited file that summarises if one of the unique_INRAE_genes.bed is present in their individual INRAEgenes_less_than_5x_ISOLATE.txt file.
    * combined_summary.txt, final summary table of all genes with less than 5x coverage, with a 0 for genes that are present in the isolate (i.e. not less than 5x) and a 1 for genes that are absent (i.e. are less than 5x coverage and therefore present in the less_than_5x_isolate.txt file). The 0 and 1 notation is meant to mimic a VCF file format where 0 is equvalent to the reference allele and a 1 indicates a difference from the reference.
-   
+
+## Script Variant_annotation.sh
+### Bash script that uses Ensembles VEP tool to assign effects to all SNPs found in a VCF file.
+1. Change the path for the REFERENCE variable to fit your reference. This should be a fasta file that contains numbers only as chromosome names REFERENCE.fasta
+2. Change the path for the GFF which should be the gff3 file showing the location of all genes for your REFERENCE.fasta
+3. Provide a list of names for your BAM_FILES variable that should be all Isolates genotyped in the VCF file. 
+
 ## R Notebook to import and combine the annotated VCF file and the final output combined_summary.txt from the coverage_calculator_genes.sh
 ###
 This R notebook requires two input files. The first is a tab delimited output from the VEP tool by ENSEMBBL. (https://www.ensembl.org/info/docs/tools/vep/index.html)
