@@ -1,8 +1,8 @@
 # FWD_genetics_screen
 A set of scripts that uses bedtools and awk for processing re-sequenced UV-mutagenised IPO323 strains
 
-# Script genome_coverage_calculator.sh
-## To subdivide the reference genome into intervals and then count intervals where the coverage is less than 5x in individual BAM files
+## Script genome_coverage_calculator.sh
+### To subdivide the reference genome into intervals and then count intervals where the coverage is less than 5x in individual BAM files
 1. Change the path for the REFERENCE_GENOME variable to fit your reference.
 2. Set the path for where the individual bam files are located under the variable BAM_PATH
 3. Change the list of names for your individual bam files under the BAM_FILES variable (bam file name format should be ISOALTE.sorted.bam)
@@ -15,8 +15,8 @@ A set of scripts that uses bedtools and awk for processing re-sequenced UV-mutag
    * isolate_summary.txt, tab-delmited file that summarises if one of the unique_lessthan5x_intervals.bed is present in their individual less_than_5x_intervals.txt file.
    * summary_table.txt, final summary table of all lessthan5x intervals, with a 0 for genome regions that are present in the isolate (i.e. not less than 5x) and a 1 for genomic regions that are absent (i.e. are less than 5x coverage and therefore present in the less_than_5x_isolate.txt file). The 0 and 1 notation is meant to mimic a VCF file format where 0 is equvalent to the reference allele and a 1 indicates a difference from the reference.
   
-# Script coverage_calculator_genes.sh
-## To find individual genes where the coverage is less than 5x in individual BAM files
+## Script coverage_calculator_genes.sh
+### To find individual genes where the coverage is less than 5x in individual BAM files
 1. Change the path for the REFERENCE_GENOME variable to fit your reference. This should be and indexed fasta file, so of the format REFERENCEISOLATE.fasta.fai
 2. Change the path for the GFF_FILE which should be the gff3 file showing the location of all genes for your REFERENCE.fasta
 3. Set the path for where the individual bam files are located under the variable BAM_PATH
@@ -29,5 +29,9 @@ A set of scripts that uses bedtools and awk for processing re-sequenced UV-mutag
    * isolate_summary.txt, tab-delmited file that summarises if one of the unique_INRAE_genes.bed is present in their individual INRAEgenes_less_than_5x_ISOLATE.txt file.
    * combined_summary.txt, final summary table of all genes with less than 5x coverage, with a 0 for genes that are present in the isolate (i.e. not less than 5x) and a 1 for genes that are absent (i.e. are less than 5x coverage and therefore present in the less_than_5x_isolate.txt file). The 0 and 1 notation is meant to mimic a VCF file format where 0 is equvalent to the reference allele and a 1 indicates a difference from the reference.
    
-# R Notebook to import and combine the annotated VCF file and the final output combined_summary.txt from the coverage_calculator_genes.sh
+## R Notebook to import and combine the annotated VCF file and the final output combined_summary.txt from the coverage_calculator_genes.sh
+###
+This R notebook requires two input files. The first is a tab delimited output from the VEP tool by ENSEMBBL. (https://www.ensembl.org/info/docs/tools/vep/index.html)
+The second is the output "combined_summary.txt" from the coverage_calculator_genes.sh above. This has been tested for the GENE deletion only. 
+Several inputs will need to be modified in order to acheive the expected output shown in the html file. However I removed the full paths to each of my files for security reasons.
 
