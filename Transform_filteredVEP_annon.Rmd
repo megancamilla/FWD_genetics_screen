@@ -1,0 +1,247 @@
+---
+title: "Variante Effect Prediction with VEP followed by tidying with R"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook.
+
+Written by Megan McDonald on July 3rd 2024, with assistance from ChatGPT.
+The goal of this notebook is to take a filtered VCF file and run this through ensembls VEP (variant effect prediction) tool. This will assign functions to all SNPs/Indels present in the VCF file.
+
+The second part of this notebook takes the VEP annotation file and combines this with a gene deletion file. Gene deletions are assigned as "HIGH" effect variants.
+
+The final part of this notebook generates filtered output tables looking at MODERATE and HIGH impact mutations/gene deletions in all isolates.
+
+
+
+```{r}
+library(tidyverse)
+library(readr)
+```
+### The file "filtered_variant_effect.txt" is the text output from VEP from ensemble. 
+ 1) Note you will need to change the individuals to match the genotype names in your filtered.vcf. file.
+ 2) VEP only takes numbers for chromosome names, so you may need to modify your reference accordingly.
+
+
+
+vep -i allnumeric.filtered.vcf --gff data.gff.gz --fasta genome.fa.gz --distance 500 --individual ISOLATE1,ISOATE2,ISOLATE3 --force_overwrite
+filter_vep -i variant_effect_output.txt -o filtered_variant_effect.txt -filter "IMPACT is not MODIFIER" --force_overwrite
+
+
+```{r}
+input_file <- "filtered_variant_effect.txt"
+data <- read_tsv(input_file, comment = "##", show_col_types = FALSE)
+
+```
+
+```{r}
+data2 <- data %>%
+  separate(Uploaded_variation, into = c("Chromosome", "Position", "Alleles"), sep = "_") %>%
+  separate(Alleles, into = c("Ref", "Alt"), sep="/")
+
+```
+
+```{r}
+data3 <- data2 %>%
+  mutate(Extra = str_replace_all(Extra, ";", "&")) %>%
+  separate(Extra, into = c("IND", "ZYG", "IMPACT", "STRAND", "SOURCE"), sep = "&") %>%
+  mutate(IND = str_remove(IND, "IND="),
+         ZYG = str_remove(ZYG, "ZYG="),
+         IMPACT = str_remove(IMPACT, "IMPACT="),
+         STRAND = str_remove(STRAND, "STRAND="),
+         SOURCE = str_remove(SOURCE, "SOURCE="))
+
+```
+
+```{r}
+data_wide <- data3 %>%
+  pivot_wider(names_from = IND, values_from = ZYG, values_fill = list(ZYG = "REF"))
+
+```
+
+```{r}
+individuals <- c("A_S68_B_1","A_S68_B_2","A_S68_B_3","A_S68_B_4","A_S71_A_1",
+                 "B_S14_A_1","B_S14_B_1","B_S14_C_1","B_S23_A_1","B_S23_B_1",
+                 "B_S23_C_1","B_S27_A_2","B_S27_B_1","B_S27_C_1","UV80_1",
+                 "UV80_2","UV80_3","UV80_4")
+
+data_wide <- data_wide %>%
+  mutate(across(all_of(individuals), ~ifelse(. == "HOM", 1, 0)))
+
+```
+
+```{r}
+# Select the desired columns and create the final table
+final_table <- data_wide %>%
+  select(Chromosome, Position, Ref, Alt, Gene, Consequence, IMPACT, cDNA_position, CDS_position, Amino_acids, Codons, all_of(individuals))
+
+final_table <- final_table %>%
+  mutate(IMPACT = factor(IMPACT, levels = c("HIGH", "MODERATE", "LOW")),
+         Chromosome = factor(Chromosome, levels = as.character(1:21)))
+
+# Save the final table to a new file
+write_tsv(final_table, "tidy_filtered_variant_effect.txt")
+```
+
+```{r}
+Impact_summary <- ggplot(final_table, aes(x = IMPACT)) +
+  geom_histogram(aes(fill=IMPACT),stat = "count") +
+  theme_minimal() +
+  labs(title = "Histogram of Counts for Each SNP IMPACT",
+       x = "SNP Category",
+       y = "Count")
+
+Impact_summary
+
+ggsave("SNP_Impacts.pdf", Impact_summary, dpi=600, units = "cm", width = 10, height = 10)
+```
+
+```{r}
+# Generate histogram for IMPACT counts per Chromosome
+Impact_per_Chromosome<- ggplot(final_table, aes(x = IMPACT)) +
+  geom_histogram(aes(fill=IMPACT), stat = "count") +
+  facet_wrap(~ Chromosome) +
+  theme_minimal() +
+  labs(title = "Histogram of Counts for Each IMPACT Per Chromosome",
+       x = "SNP Category",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+Impact_per_Chromosome
+
+ggsave("All_SNP_Impacts_by_Chr.pdf", Impact_per_Chromosome, dpi=600, units = "cm", width = 20, height = 15)
+
+```
+```{r}
+gene_presence_absence_file <- "../06_coverage/genes/combined_summary.txt"
+
+# Step 1: Import the gene presence-absence data
+
+gene_data <- read_tsv(gene_presence_absence_file, col_types = cols(
+  Chrom = col_character(),
+  Start = col_double(),
+  Stop = col_double(),
+  Gene = col_character(),
+  .default = col_double()
+))
+
+# Remove the "IPO323_chr_" prefix from the Chromosome column
+gene_data <- gene_data %>%
+  mutate(Chrom = str_remove(Chrom, "IPO323_chr_"))
+
+# Step 2: Transform the gene presence-absence data
+# Extract relevant information from the Gene column and create a unified format
+gene_data <- gene_data %>%
+  mutate(Chromosome = Chrom,
+         Position = Start,
+         Gene = str_extract(Gene, "gene_[0-9]+"),
+         Consequence = "gene deletion",
+         IMPACT = "HIGH") %>%
+  select(Chromosome, Position, Gene, Consequence, IMPACT, starts_with("A_"), starts_with("B_"), starts_with("UV"))
+
+
+```
+
+## Combine the Gene Deletion file and the SNPs Variante Effect Files into one large Dataframe.
+## Gene deletions have "HIGH" impact assigned to them.
+
+```{r}
+# Step 3: Combine the two datasets
+# Ensure the final_table has the same column names for individuals
+final_table <- final_table %>%
+  select(Chromosome, Position, Gene, Consequence, IMPACT, starts_with("A_"), starts_with("B_"), starts_with("UV"))%>%
+  mutate(Position= as.numeric(Position))
+
+# Combine the datasets
+combined_data <- bind_rows(final_table, gene_data)
+
+# Ensure the Chromosome column is a factor with levels ordered from 1 to 21
+combined_data <- combined_data %>%
+  mutate(Chromosome = factor(Chromosome, levels = as.character(1:21)))
+
+# Ensure the combined data is sorted by Chromosome and Position
+combined_data <- combined_data %>%
+  arrange(Chromosome, as.numeric(Position))
+
+
+
+# Save the combined data to a new file
+write_tsv(combined_data, "combined_snp_gene_data.txt")
+
+# How many genes are impacted
+length(unique(combined_data$Gene))
+
+combined_data[combined_data$IMPACT=="MODERATE",3]
+combined_data[combined_data$IMPACT=="HIGH",3]
+combined_data[combined_data$IMPACT=="LOW",3]
+```
+
+## Make histogram plots again including gene deletions
+
+```{r}
+Impact_summary_SNPandGD <- ggplot(combined_data, aes(x = IMPACT)) +
+  geom_histogram(aes(fill=IMPACT),stat = "count") +
+  theme_minimal() +
+  labs(title = "Histogram of Counts for Each Impact",
+       x = "Mutation Category (includes SNPs and Gene Deletions)",
+       y = "Count")
+
+Impact_summary_SNPandGD
+
+ggsave("SNPandGD_Impacts.pdf", Impact_summary_SNPandGD, dpi=600, units = "cm", width = 15, height = 10)
+
+```
+
+
+
+## Sort through this combined list to find any genes that have a high or moderate impact in the mutants with the GoV phenotype but not the other sequenced controls.
+
+```{r}
+
+
+# Step 1: Filter for MODERATE or HIGH impacts
+high_moderate_impact_data <- combined_data %>%
+  filter(IMPACT %in% c("HIGH", "MODERATE"))
+
+# Step 2: Identify columns representing individuals
+individuals <- names(high_moderate_impact_data)[grepl("A_|B_|UV", names(high_moderate_impact_data))]
+
+# Step 3: Exclude genes where UV80_1, UV80_2, UV80_3, or UV80_4 have a 1 genotype
+uv_individuals <- c("UV80_1", "UV80_2", "UV80_3", "UV80_4", "A_S68_B_3", "A_S71_A_1")
+filtered_data <- high_moderate_impact_data %>%
+  filter(rowSums(across(all_of(uv_individuals), ~ . == 1)) == 0)
+
+# Step 4: Combine the genotypes across duplicate rows for each gene
+combined_genotypes <- filtered_data %>%
+  group_by(Gene, Chromosome) %>%
+  summarise(across(all_of(individuals), ~ max(.)), .groups = 'drop')
+
+# Step 5: Summarize the data to count the number of individuals with a 1 for each gene
+gene_impact_summary <- combined_genotypes %>%
+  rowwise() %>%
+  mutate(Count = sum(c_across(all_of(individuals)) == 1)) %>%
+  ungroup() %>%
+  filter(Count >= 2) %>%
+  select(Gene, Count, all_of(individuals))
+
+# Step 6: Create a reference dataframe for Gene and Chromosome
+gene_chromosome_lookup <- filtered_data %>%
+  select(Gene, Chromosome) %>%
+  distinct()
+
+# Step 7: Merge Chromosome information back to gene_impact_summary
+gene_impact_summary <- gene_impact_summary %>%
+  left_join(gene_chromosome_lookup, by = "Gene") %>%
+  select(Chromosome, Gene, Count, all_of(individuals))
+
+
+# Print the summary
+print(gene_impact_summary)
+
+# Save the summary to a new file
+write_tsv(gene_impact_summary, "gene_impact_summary_moderate_high_filtered.txt")
+
+```
+
